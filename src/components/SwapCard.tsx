@@ -10,6 +10,7 @@ import { TOKEN_INFO, SOL_MINT, formatAmount, getExplorerUrl } from '@/lib/solana
 import { saveTrade } from '@/lib/db';
 import { toast } from 'sonner';
 import { ArrowDownUp, Loader2, ExternalLink, AlertTriangle } from 'lucide-react';
+import { TokenSelector } from './TokenSelector';
 
 const SIZE_PRESETS = [0.1, 0.25, 0.5];
 const SLIPPAGE_OPTIONS = [0.5, 1.0, 2.0];
@@ -161,12 +162,11 @@ export const SwapCard: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 min-w-[100px]">
-            {inputToken?.logoURI && (
-              <img src={inputToken.logoURI} alt="" className="w-6 h-6 rounded-full" />
-            )}
-            <span className="font-mono font-medium">{inputToken?.symbol || 'Select'}</span>
-          </div>
+          <TokenSelector
+            selectedMint={inputMint}
+            onSelect={setInputMint}
+            label="Select Input Token"
+          />
           <Input
             type="number"
             placeholder="0.00"
@@ -195,12 +195,11 @@ export const SwapCard: React.FC = () => {
           <span className="text-xs text-muted-foreground uppercase tracking-wider">To</span>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 min-w-[100px]">
-            {outputToken?.logoURI && (
-              <img src={outputToken.logoURI} alt="" className="w-6 h-6 rounded-full" />
-            )}
-            <span className="font-mono font-medium">{outputToken?.symbol || 'Select'}</span>
-          </div>
+          <TokenSelector
+            selectedMint={outputMint}
+            onSelect={setOutputMint}
+            label="Select Output Token"
+          />
           <div className="flex-1 text-right">
             {loading ? (
               <Loader2 className="h-5 w-5 animate-spin ml-auto text-muted-foreground" />
