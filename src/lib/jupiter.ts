@@ -1,5 +1,6 @@
 // src/lib/jupiter.ts
 // Jupiter v6 helpers for Baseline Terminal
+// NOTE: This version uses the Vite dev proxy (/jup/*) to avoid browser CORS issues in development.
 
 export type Severity = "low" | "medium" | "high";
 
@@ -15,8 +16,8 @@ export type RoutePlanStep = {
 export type QuoteResponse = {
   inputMint: string;
   outputMint: string;
-  inAmount: string;   // base units as string
-  outAmount: string;  // base units as string
+  inAmount: string; // base units as string
+  outAmount: string; // base units as string
   priceImpactPct?: string | number;
   routePlan?: RoutePlanStep[];
 };
@@ -38,13 +39,11 @@ function toNumber(x: unknown): number {
  * Convert Jupiter's priceImpactPct into a severity + numeric value.
  * Expectation: value in "percent" units (e.g. 0.42 = 0.42%).
  */
-export function calculatePriceImpact(priceImpactPct?: string | number): {
-  value: number;
-  severity: Severity;
-} {
+export function calculatePriceImpact(
+  priceImpactPct?: string | number
+): { value: number; severity: Severity } {
   const v = toNumber(priceImpactPct);
 
-  // Heuristic thresholds (Baseline-style conservative)
   let severity: Severity = "low";
   if (v >= 3) severity = "high";
   else if (v >= 1) severity = "medium";
@@ -58,7 +57,6 @@ export function formatRouteLabel(routePlan?: RoutePlanStep[]): string {
     .map((s) => s.swapInfo?.label)
     .filter(Boolean) as string[];
 
-  // Deduplicate while preserving order
   const unique: string[] = [];
   for (const l of labels) {
     if (!unique.includes(l)) unique.push(l);
@@ -74,7 +72,7 @@ export async function getQuote(
   slippageBps: number
 ): Promise<QuoteResponse> {
   const url =
-    `https://quote-api.jup.ag/v6/quote` +
+    `/jup/v6/quote` +
     `?inputMint=${encodeURIComponent(inputMint)}` +
     `&outputMint=${encodeURIComponent(outputMint)}` +
     `&amount=${encodeURIComponent(String(amount))}` +
@@ -87,25 +85,22 @@ export async function getQuote(
     throw new Error(`Jupiter quote failed ${res.status}: ${text}`);
   }
 
-  // v6 returns the quote object directly
-  const json = (await res.json()) as QuoteResponse;
-  return json;
+  return (await res.json()) as QuoteResponse;
 }
 
 export async function getSwapTransaction(
   quote: QuoteResponse,
   userPublicKey: string
 ): Promise<SwapResponse> {
-  const res = await fetch("https://quote-api.jup.ag/v6/swap", {
+  // Also proxy swap in DEV to avoid CORS on POST
+  const res = await fetch("/jup/v6/swap", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       quoteResponse: quote,
       userPublicKey,
-      // Reasonable defaults for MVP; you can tweak later:
       wrapAndUnwrapSol: true,
       dynamicComputeUnitLimit: true,
-      // prioritizationFeeLamports: "auto", // optional, uncomment if desired
     }),
   });
 
