@@ -1,7 +1,6 @@
-// Jupiter API helpers
+// Jupiter API helpers - proxied through edge functions
 
-const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
-const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 export interface QuoteResponse {
   inputMint: string;
@@ -51,7 +50,7 @@ export const getQuote = async (
       slippageBps: slippageBps.toString(),
     });
 
-    const response = await fetch(`${JUPITER_QUOTE_API}?${params}`);
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/jupiter-quote?${params}`);
     
     if (!response.ok) {
       const error = await response.json();
@@ -59,7 +58,15 @@ export const getQuote = async (
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // Check if Jupiter returned an error
+    if (data.error) {
+      console.error('Jupiter API error:', data.error);
+      return null;
+    }
+
+    return data;
   } catch (error) {
     console.error('Error fetching Jupiter quote:', error);
     return null;
@@ -71,7 +78,7 @@ export const getSwapTransaction = async (
   userPublicKey: string
 ): Promise<SwapResponse | null> => {
   try {
-    const response = await fetch(JUPITER_SWAP_API, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/jupiter-swap`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,7 +98,14 @@ export const getSwapTransaction = async (
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error('Jupiter swap API error:', data.error);
+      return null;
+    }
+
+    return data;
   } catch (error) {
     console.error('Error fetching swap transaction:', error);
     return null;
