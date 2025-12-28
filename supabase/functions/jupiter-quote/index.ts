@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Jupiter v6 API
-const JUPITER_QUOTE_API = 'https://api.jup.ag/quote/v6';
+// Original Jupiter v6 quote API - public endpoint
+const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -44,7 +44,6 @@ serve(async (req) => {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'Lovable-Terminal/1.0',
       },
     });
 
@@ -52,17 +51,21 @@ serve(async (req) => {
 
     // Check if response is JSON
     const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text);
+    const responseText = await response.text();
+    
+    console.log('Jupiter API response:', responseText.substring(0, 300));
+
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('Failed to parse Jupiter response as JSON');
       return new Response(
-        JSON.stringify({ error: `Jupiter API returned non-JSON response: ${text.substring(0, 100)}` }),
+        JSON.stringify({ error: `Jupiter API error: ${responseText.substring(0, 100)}` }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const data = await response.json();
-    console.log('Jupiter API response:', JSON.stringify(data).substring(0, 200));
 
     return new Response(JSON.stringify(data), {
       status: response.status,
