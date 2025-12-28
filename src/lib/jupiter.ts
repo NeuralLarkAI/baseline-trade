@@ -1,6 +1,7 @@
 // Jupiter API helpers - proxied through edge functions
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export interface QuoteResponse {
   inputMint: string;
@@ -50,7 +51,13 @@ export const getQuote = async (
       slippageBps: slippageBps.toString(),
     });
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/jupiter-quote?${params}`);
+    console.log('Fetching quote from edge function:', `${SUPABASE_URL}/functions/v1/jupiter-quote?${params}`);
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/jupiter-quote?${params}`, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+      },
+    });
     
     if (!response.ok) {
       const error = await response.json();
@@ -82,6 +89,7 @@ export const getSwapTransaction = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
       },
       body: JSON.stringify({
         quoteResponse,
