@@ -1,7 +1,10 @@
-// Jupiter API helpers - direct calls to Jupiter API
+// Jupiter API helpers - using CORS proxy for browser requests
 
 const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
 const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
+
+// Use CORS proxy for browser requests
+const corsProxy = (url: string) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
 
 export interface QuoteResponse {
   inputMint: string;
@@ -51,9 +54,12 @@ export const getQuote = async (
       slippageBps: slippageBps.toString(),
     });
 
-    console.log('Fetching Jupiter quote:', `${JUPITER_QUOTE_API}?${params}`);
+    const directUrl = `${JUPITER_QUOTE_API}?${params}`;
+    const proxyUrl = corsProxy(directUrl);
+    
+    console.log('Fetching Jupiter quote via proxy');
 
-    const response = await fetch(`${JUPITER_QUOTE_API}?${params}`, {
+    const response = await fetch(proxyUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -87,7 +93,9 @@ export const getSwapTransaction = async (
   userPublicKey: string
 ): Promise<SwapResponse | null> => {
   try {
-    const response = await fetch(JUPITER_SWAP_API, {
+    const proxyUrl = corsProxy(JUPITER_SWAP_API);
+    
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
