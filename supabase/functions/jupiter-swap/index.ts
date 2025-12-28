@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Jupiter v6 API
-const JUPITER_SWAP_API = 'https://api.jup.ag/swap/v6/swap';
+// Original Jupiter v6 swap API - public endpoint
+const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -30,25 +30,25 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'Lovable-Terminal/1.0',
       },
       body: JSON.stringify(body),
     });
 
     console.log('Jupiter swap API response status:', response.status);
 
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text);
+    const responseText = await response.text();
+    
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('Failed to parse Jupiter response as JSON');
       return new Response(
-        JSON.stringify({ error: `Jupiter API returned non-JSON response: ${text.substring(0, 100)}` }),
+        JSON.stringify({ error: `Jupiter API error: ${responseText.substring(0, 100)}` }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const data = await response.json();
 
     return new Response(JSON.stringify(data), {
       status: response.status,
