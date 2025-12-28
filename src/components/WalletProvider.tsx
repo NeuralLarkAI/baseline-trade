@@ -1,7 +1,8 @@
 import React, { useMemo, ReactNode } from 'react';
 import { ConnectionProvider, WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 import { useNetwork } from '@/contexts/NetworkContext';
 import { DEVNET_ENDPOINT, MAINNET_ENDPOINT } from '@/lib/solana';
 
