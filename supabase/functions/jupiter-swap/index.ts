@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Use the lite-api endpoint
-const JUPITER_SWAP_API = 'https://lite-api.jup.ag/v1/swap';
+// Jupiter v6 API
+const JUPITER_SWAP_API = 'https://api.jup.ag/swap/v6/swap';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -30,11 +30,23 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'User-Agent': 'Lovable-Terminal/1.0',
       },
       body: JSON.stringify(body),
     });
 
     console.log('Jupiter swap API response status:', response.status);
+
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response:', text);
+      return new Response(
+        JSON.stringify({ error: `Jupiter API returned non-JSON response: ${text.substring(0, 100)}` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const data = await response.json();
 

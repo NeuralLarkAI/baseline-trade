@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Use the lite-api endpoint which has better availability
-const JUPITER_QUOTE_API = 'https://lite-api.jup.ag/v1/quote';
+// Jupiter v6 API
+const JUPITER_QUOTE_API = 'https://api.jup.ag/quote/v6';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -44,10 +44,22 @@ serve(async (req) => {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'User-Agent': 'Lovable-Terminal/1.0',
       },
     });
 
     console.log('Jupiter API response status:', response.status);
+
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response:', text);
+      return new Response(
+        JSON.stringify({ error: `Jupiter API returned non-JSON response: ${text.substring(0, 100)}` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const data = await response.json();
     console.log('Jupiter API response:', JSON.stringify(data).substring(0, 200));
