@@ -1,1 +1,7 @@
 project_id = "mgpotwoxqjnmemrhpddg"
+
+[functions.jupiter-quote]
+verify_jwt = false
+
+[functions.jupiter-swap]
+verify_jwt = false
