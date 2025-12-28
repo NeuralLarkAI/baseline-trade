@@ -14,7 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          is_active: boolean
+          is_triggered: boolean
+          note: string | null
+          target_price: number
+          token_mint: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          id?: string
+          is_active?: boolean
+          is_triggered?: boolean
+          note?: string | null
+          target_price: number
+          token_mint: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          is_active?: boolean
+          is_triggered?: boolean
+          note?: string | null
+          target_price?: number
+          token_mint?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      signals: {
+        Row: {
+          action: string | null
+          created_at: string
+          id: string
+          is_pinned: boolean
+          prefill_size: number | null
+          tags: string[] | null
+          text: string
+          token_mint: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          prefill_size?: number | null
+          tags?: string[] | null
+          text: string
+          token_mint?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          prefill_size?: number | null
+          tags?: string[] | null
+          text?: string
+          token_mint?: string | null
+        }
+        Relationships: []
+      }
+      trades: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          input_amount: number
+          input_mint: string
+          output_amount_est: number
+          output_mint: string
+          tx_sig: string | null
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          id?: string
+          input_amount: number
+          input_mint: string
+          output_amount_est: number
+          output_mint: string
+          tx_sig?: string | null
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          input_amount?: number
+          input_mint?: string
+          output_amount_est?: number
+          output_mint?: string
+          tx_sig?: string | null
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      watchlist: {
+        Row: {
+          added_at: string
+          id: string
+          symbol: string
+          token_mint: string
+          wallet_address: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          symbol: string
+          token_mint: string
+          wallet_address: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          symbol?: string
+          token_mint?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
