@@ -1,7 +1,7 @@
-// Jupiter API helpers - proxied through edge functions
+// Jupiter API helpers - direct calls to Jupiter API
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
+const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
 
 export interface QuoteResponse {
   inputMint: string;
@@ -51,17 +51,18 @@ export const getQuote = async (
       slippageBps: slippageBps.toString(),
     });
 
-    console.log('Fetching quote from edge function:', `${SUPABASE_URL}/functions/v1/jupiter-quote?${params}`);
+    console.log('Fetching Jupiter quote:', `${JUPITER_QUOTE_API}?${params}`);
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/jupiter-quote?${params}`, {
+    const response = await fetch(`${JUPITER_QUOTE_API}?${params}`, {
+      method: 'GET',
       headers: {
-        'apikey': SUPABASE_ANON_KEY,
+        'Accept': 'application/json',
       },
     });
     
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Jupiter quote error:', error);
+      const errorText = await response.text();
+      console.error('Jupiter quote error:', response.status, errorText);
       return null;
     }
 
@@ -73,6 +74,7 @@ export const getQuote = async (
       return null;
     }
 
+    console.log('Quote received:', data.outAmount);
     return data;
   } catch (error) {
     console.error('Error fetching Jupiter quote:', error);
@@ -85,11 +87,11 @@ export const getSwapTransaction = async (
   userPublicKey: string
 ): Promise<SwapResponse | null> => {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/jupiter-swap`, {
+    const response = await fetch(JUPITER_SWAP_API, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         quoteResponse,
@@ -101,8 +103,8 @@ export const getSwapTransaction = async (
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Jupiter swap error:', error);
+      const errorText = await response.text();
+      console.error('Jupiter swap error:', response.status, errorText);
       return null;
     }
 
