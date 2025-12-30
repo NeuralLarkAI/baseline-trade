@@ -1,6 +1,5 @@
 // src/lib/jupiter.ts
-// Jupiter v6 helpers for Baseline Terminal
-// NOTE: This version uses the Vite dev proxy (/jup/*) to avoid browser CORS issues in development.
+// Jupiter helpers using edge function proxy
 
 export type Severity = "low" | "medium" | "high";
 
@@ -16,14 +15,14 @@ export type RoutePlanStep = {
 export type QuoteResponse = {
   inputMint: string;
   outputMint: string;
-  inAmount: string; // base units as string
-  outAmount: string; // base units as string
+  inAmount: string;
+  outAmount: string;
   priceImpactPct?: string | number;
   routePlan?: RoutePlanStep[];
 };
 
 export type SwapResponse = {
-  swapTransaction: string; // base64
+  swapTransaction: string;
 };
 
 function toNumber(x: unknown): number {
@@ -35,10 +34,6 @@ function toNumber(x: unknown): number {
   return 0;
 }
 
-/**
- * Convert Jupiter's priceImpactPct into a severity + numeric value.
- * Expectation: value in "percent" units (e.g. 0.42 = 0.42%).
- */
 export function calculatePriceImpact(
   priceImpactPct?: string | number
 ): { value: number; severity: Severity } {
@@ -65,23 +60,35 @@ export function formatRouteLabel(routePlan?: RoutePlanStep[]): string {
   return unique.length ? unique.join(" → ") : "Jupiter";
 }
 
+const getSupabaseUrl = () => import.meta.env.VITE_SUPABASE_URL;
+const getAnonKey = () => import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 export async function getQuote(
   inputMint: string,
   outputMint: string,
   amount: number,
   slippageBps: number
 ): Promise<QuoteResponse> {
-  const url =
-    `/jup/v6/quote` +
-    `?inputMint=${encodeURIComponent(inputMint)}` +
-    `&outputMint=${encodeURIComponent(outputMint)}` +
-    `&amount=${encodeURIComponent(String(amount))}` +
-    `&slippageBps=${encodeURIComponent(String(slippageBps))}`;
+  const params = new URLSearchParams({
+    inputMint,
+    outputMint,
+    amount: String(amount),
+    slippageBps: String(slippageBps),
+  });
 
-  const res = await fetch(url);
+  const res = await fetch(
+    `${getSupabaseUrl()}/functions/v1/jupiter-quote?${params}`,
+    {
+      headers: {
+        'apikey': getAnonKey(),
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
   if (!res.ok) {
     const text = await res.text();
+    console.error('Jupiter quote failed:', res.status, text);
     throw new Error(`Jupiter quote failed ${res.status}: ${text}`);
   }
 
@@ -92,20 +99,26 @@ export async function getSwapTransaction(
   quote: QuoteResponse,
   userPublicKey: string
 ): Promise<SwapResponse> {
-  // Also proxy swap in DEV to avoid CORS on POST
-  const res = await fetch("/jup/v6/swap", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      quoteResponse: quote,
-      userPublicKey,
-      wrapAndUnwrapSol: true,
-      dynamicComputeUnitLimit: true,
-    }),
-  });
+  const res = await fetch(
+    `${getSupabaseUrl()}/functions/v1/jupiter-swap`,
+    {
+      method: 'POST',
+      headers: {
+        'apikey': getAnonKey(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        quoteResponse: quote,
+        userPublicKey,
+        wrapAndUnwrapSol: true,
+        dynamicComputeUnitLimit: true,
+      }),
+    }
+  );
 
   if (!res.ok) {
     const text = await res.text();
+    console.error('Jupiter swap failed:', res.status, text);
     throw new Error(`Jupiter swap failed ${res.status}: ${text}`);
   }
 

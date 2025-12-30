@@ -5,23 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Original Jupiter v6 quote API - public endpoint
-const JUPITER_QUOTE_API = 'https://quote-api.jup.ag/v6/quote';
+// Jupiter Metis API (requires API key)
+const JUPITER_API_URL = 'https://api.jup.ag/swap/v1/quote';
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const apiKey = Deno.env.get('JUPITER_API_KEY');
+    if (!apiKey) {
+      console.error('JUPITER_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'Jupiter API key not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const url = new URL(req.url);
     const inputMint = url.searchParams.get('inputMint');
     const outputMint = url.searchParams.get('outputMint');
     const amount = url.searchParams.get('amount');
     const slippageBps = url.searchParams.get('slippageBps') || '100';
 
-    console.log(`Fetching quote: ${inputMint} -> ${outputMint}, amount: ${amount}`);
+    console.log(`Quote request: ${inputMint} -> ${outputMint}, amount: ${amount}`);
 
     if (!inputMint || !outputMint || !amount) {
       return new Response(
@@ -37,32 +45,28 @@ serve(async (req) => {
       slippageBps,
     });
 
-    const apiUrl = `${JUPITER_QUOTE_API}?${params}`;
+    const apiUrl = `${JUPITER_API_URL}?${params}`;
     console.log('Calling Jupiter API:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'x-api-key': apiKey,
       },
     });
 
-    console.log('Jupiter API response status:', response.status);
-
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type');
+    console.log('Jupiter response status:', response.status);
     const responseText = await response.text();
-    
-    console.log('Jupiter API response:', responseText.substring(0, 300));
+    console.log('Jupiter response:', responseText.substring(0, 500));
 
-    // Try to parse as JSON
     let data;
     try {
       data = JSON.parse(responseText);
     } catch {
-      console.error('Failed to parse Jupiter response as JSON');
+      console.error('Failed to parse Jupiter response');
       return new Response(
-        JSON.stringify({ error: `Jupiter API error: ${responseText.substring(0, 100)}` }),
+        JSON.stringify({ error: `Jupiter API error: ${responseText.substring(0, 200)}` }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -73,7 +77,7 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Jupiter quote proxy error:', error);
+    console.error('Jupiter quote error:', error);
     return new Response(
       JSON.stringify({ error: `Failed to fetch quote: ${errorMessage}` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
