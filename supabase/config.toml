@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.jupiter-swap]
 verify_jwt = false
+
+[functions.solana-rpc]
+verify_jwt = false

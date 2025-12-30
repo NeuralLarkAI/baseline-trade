@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { getTrades } from '@/lib/db';
-import { getSOLBalance, getSPLTokenBalances, TOKEN_INFO, formatAmount, formatAddress, getExplorerUrl } from '@/lib/solana';
+import { getSOLBalance, getSPLTokenBalances, TOKEN_INFO, formatAmount, formatAddress, getExplorerUrl, createConnection } from '@/lib/solana';
 import { useNetwork } from '@/contexts/NetworkContext';
 import { Wallet, ExternalLink, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,7 +26,6 @@ interface TokenBalance {
 
 export const PortfolioPanel: React.FC = () => {
   const { publicKey } = useWallet();
-  const { connection } = useConnection();
   const { isMainnet } = useNetwork();
   
   const [solBalance, setSolBalance] = useState<number>(0);
@@ -41,6 +40,7 @@ export const PortfolioPanel: React.FC = () => {
       
       setLoading(true);
       try {
+        const connection = createConnection(isMainnet);
         const [sol, tokens, tradeData] = await Promise.all([
           getSOLBalance(connection, publicKey),
           getSPLTokenBalances(connection, publicKey),
@@ -59,10 +59,10 @@ export const PortfolioPanel: React.FC = () => {
 
     if (publicKey) {
       fetchData();
-      const interval = setInterval(fetchData, 30000); // Refresh every 30s
+      const interval = setInterval(fetchData, 30000);
       return () => clearInterval(interval);
     }
-  }, [publicKey, connection]);
+  }, [publicKey, isMainnet]);
 
   if (!publicKey) {
     return (
