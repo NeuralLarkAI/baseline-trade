@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Jupiter Metis API (requires API key)
 const JUPITER_API_URL = 'https://api.jup.ag/swap/v1/quote';
 
 serve(async (req) => {
@@ -15,6 +14,8 @@ serve(async (req) => {
 
   try {
     const apiKey = Deno.env.get('JUPITER_API_KEY');
+    console.log('API Key present:', !!apiKey, 'Length:', apiKey?.length);
+    
     if (!apiKey) {
       console.error('JUPITER_API_KEY not configured');
       return new Response(
@@ -43,6 +44,7 @@ serve(async (req) => {
       outputMint,
       amount,
       slippageBps,
+      restrictIntermediateTokens: 'true',
     });
 
     const apiUrl = `${JUPITER_API_URL}?${params}`;
