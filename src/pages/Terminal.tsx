@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NetworkProvider } from "@/contexts/NetworkContext";
-import { TradeProvider } from "@/contexts/TradeContext";
+import { TradeProvider, useTrade } from "@/contexts/TradeContext";
 import { WalletProvider } from "@/components/WalletProvider";
 import { Header } from "@/components/Header";
 import { SwapCard } from "@/components/SwapCard";
@@ -9,9 +9,15 @@ import { BaselineFeed } from "@/components/BaselineFeed";
 import { AlertsPanel } from "@/components/AlertsPanel";
 import { WatchlistSidebar } from "@/components/WatchlistSidebar";
 import { PortfolioPanel } from "@/components/PortfolioPanel";
+import { DexScreenerChart } from "@/components/DexScreenerChart";
+import { SOL_MINT } from "@/lib/solana";
 
 const TerminalContent = () => {
   const [activeTab, setActiveTab] = useState("trade");
+  const { outputMint, inputMint } = useTrade();
+  
+  // Show chart for the output token if selected, otherwise input token (skip SOL for chart)
+  const chartToken = outputMint && outputMint !== SOL_MINT ? outputMint : (inputMint !== SOL_MINT ? inputMint : outputMint);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -48,8 +54,10 @@ const TerminalContent = () => {
             </TabsList>
 
             <TabsContent value="trade" className="mt-0">
-              <div className="max-w-xl mx-auto">
+              <div className="max-w-xl mx-auto space-y-4">
                 <SwapCard />
+                {/* DexScreener Chart below swap card */}
+                <DexScreenerChart tokenMint={chartToken} />
               </div>
             </TabsContent>
 

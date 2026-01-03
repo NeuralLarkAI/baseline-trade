@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.solana-rpc]
 verify_jwt = false
+
+[functions.token-metadata]
+verify_jwt = false
