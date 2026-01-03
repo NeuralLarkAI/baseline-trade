@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TOKEN_INFO, SOL_MINT, USDC_MINT_MAINNET, USDC_MINT_DEVNET } from '@/lib/solana';
 import { useNetwork } from '@/contexts/NetworkContext';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Loader2 } from 'lucide-react';
+import { fetchTokenMetadata, getCachedMetadata, TokenMetadata } from '@/lib/tokenMetadata';
 
 // Popular tokens list
 const POPULAR_TOKENS = [
@@ -52,13 +53,50 @@ interface TokenSelectorProps {
   label?: string;
 }
 
+// Helper to get token display info
+function getTokenDisplay(mint: string): { symbol: string; name: string; logoURI?: string } | null {
+  // Check TOKEN_INFO first
+  if (TOKEN_INFO[mint]) {
+    return TOKEN_INFO[mint];
+  }
+  
+  // Check POPULAR_TOKENS
+  const popular = POPULAR_TOKENS.find(t => t.mint === mint);
+  if (popular) {
+    return popular;
+  }
+  
+  // Check metadata cache
+  const cached = getCachedMetadata(mint);
+  if (cached) {
+    return cached;
+  }
+  
+  return null;
+}
+
 export const TokenSelector: React.FC<TokenSelectorProps> = ({ selectedMint, onSelect, label }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [customMint, setCustomMint] = useState('');
+  const [loadingCustom, setLoadingCustom] = useState(false);
+  const [customTokenPreview, setCustomTokenPreview] = useState<TokenMetadata | null>(null);
+  const [selectedTokenMeta, setSelectedTokenMeta] = useState<TokenMetadata | null>(null);
   const { isMainnet } = useNetwork();
 
-  const selectedToken = TOKEN_INFO[selectedMint] || POPULAR_TOKENS.find(t => t.mint === selectedMint);
+  // Fetch metadata for selected token if not in known lists
+  useEffect(() => {
+    const display = getTokenDisplay(selectedMint);
+    if (!display && selectedMint) {
+      fetchTokenMetadata(selectedMint).then(meta => {
+        if (meta) setSelectedTokenMeta(meta);
+      });
+    } else {
+      setSelectedTokenMeta(null);
+    }
+  }, [selectedMint]);
+
+  const selectedToken = getTokenDisplay(selectedMint) || selectedTokenMeta;
 
   // Get recently used from localStorage
   const getRecentTokens = () => {
@@ -86,7 +124,24 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({ selectedMint, onSe
     setOpen(false);
     setSearch('');
     setCustomMint('');
+    setCustomTokenPreview(null);
   };
+
+  // Fetch preview when custom mint changes
+  useEffect(() => {
+    if (customMint && customMint.length >= 32) {
+      setLoadingCustom(true);
+      fetchTokenMetadata(customMint)
+        .then(meta => {
+          setCustomTokenPreview(meta);
+        })
+        .finally(() => {
+          setLoadingCustom(false);
+        });
+    } else {
+      setCustomTokenPreview(null);
+    }
+  }, [customMint]);
 
   const handleCustomMint = () => {
     if (customMint && customMint.length >= 32) {
@@ -100,9 +155,27 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({ selectedMint, onSe
   );
 
   const recentMints = getRecentTokens();
-  const recentTokens = recentMints
-    .map((mint: string) => POPULAR_TOKENS.find(t => t.mint === mint) || { mint, symbol: mint.slice(0, 4) + '...', name: 'Unknown' })
-    .filter((t: any) => t);
+  const [recentTokens, setRecentTokens] = useState<Array<{ mint: string; symbol: string; name: string; logoURI?: string }>>([]);
+
+  // Fetch metadata for recent tokens
+  useEffect(() => {
+    const loadRecentMetadata = async () => {
+      const tokens = await Promise.all(
+        recentMints.map(async (mint: string) => {
+          const known = POPULAR_TOKENS.find(t => t.mint === mint);
+          if (known) return known;
+          
+          const meta = await fetchTokenMetadata(mint);
+          return meta || { mint, symbol: mint.slice(0, 4) + '...', name: 'Unknown Token' };
+        })
+      );
+      setRecentTokens(tokens);
+    };
+    
+    if (open && recentMints.length > 0) {
+      loadRecentMetadata();
+    }
+  }, [open, recentMints.length]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -213,12 +286,44 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({ selectedMint, onSe
                 onChange={(e) => setCustomMint(e.target.value)}
                 className="font-mono text-sm"
               />
+              
+              {/* Token Preview */}
+              {loadingCustom && (
+                <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Fetching token info...</span>
+                </div>
+              )}
+              
+              {customTokenPreview && !loadingCustom && (
+                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-sm">
+                  {customTokenPreview.logoURI ? (
+                    <img 
+                      src={customTokenPreview.logoURI} 
+                      alt="" 
+                      className="w-8 h-8 rounded-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">
+                      {customTokenPreview.symbol.charAt(0)}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="font-mono font-medium">{customTokenPreview.symbol}</div>
+                    <div className="text-xs text-muted-foreground">{customTokenPreview.name}</div>
+                  </div>
+                </div>
+              )}
+              
               <button
                 onClick={handleCustomMint}
-                disabled={!customMint || customMint.length < 32}
+                disabled={!customMint || customMint.length < 32 || loadingCustom}
                 className="w-full py-2 px-4 bg-primary text-primary-foreground rounded-sm font-mono text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
               >
-                Add Token
+                {customTokenPreview ? `Add ${customTokenPreview.symbol}` : 'Add Token'}
               </button>
             </div>
           </TabsContent>

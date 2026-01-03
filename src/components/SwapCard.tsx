@@ -18,6 +18,7 @@ import {
   formatAmount,
   getExplorerUrl,
 } from "@/lib/solana";
+import { getCachedMetadata, fetchTokenMetadata } from "@/lib/tokenMetadata";
 import { saveTrade } from "@/lib/db";
 import { toast } from "sonner";
 import { ArrowDownUp, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
@@ -53,12 +54,35 @@ export const SwapCard: React.FC = () => {
   const inputToken = TOKEN_INFO[inputMint];
   const outputToken = TOKEN_INFO[outputMint];
 
+  // Resolve decimals from TOKEN_INFO, cached metadata, or default
   const resolveDecimals = useCallback(
-    (mint: string) => {
+    async (mint: string): Promise<number> => {
       if (!mint) return 9;
       if (mint === SOL_MINT) return 9;
       if (mint === USDC_MINT) return 6;
-      return TOKEN_INFO[mint]?.decimals ?? 9;
+      if (TOKEN_INFO[mint]?.decimals) return TOKEN_INFO[mint].decimals;
+      
+      // Check cached metadata
+      const cached = getCachedMetadata(mint);
+      if (cached?.decimals) return cached.decimals;
+      
+      // Fetch metadata if not cached
+      const meta = await fetchTokenMetadata(mint);
+      return meta?.decimals ?? 9;
+    },
+    []
+  );
+
+  // Sync version for immediate use
+  const resolveDecimalsSync = useCallback(
+    (mint: string): number => {
+      if (!mint) return 9;
+      if (mint === SOL_MINT) return 9;
+      if (mint === USDC_MINT) return 6;
+      if (TOKEN_INFO[mint]?.decimals) return TOKEN_INFO[mint].decimals;
+      
+      const cached = getCachedMetadata(mint);
+      return cached?.decimals ?? 9;
     },
     []
   );
@@ -93,7 +117,7 @@ export const SwapCard: React.FC = () => {
     });
 
     // Convert UI amount -> base units
-    const decimals = resolveDecimals(inputMint);
+    const decimals = resolveDecimalsSync(inputMint);
     const amount = Math.floor(amtUi * Math.pow(10, decimals));
 
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -131,7 +155,7 @@ export const SwapCard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [inputMint, outputMint, inputAmount, slippage, isMainnet, resolveDecimals]);
+  }, [inputMint, outputMint, inputAmount, slippage, isMainnet, resolveDecimalsSync]);
 
   // Debounced quoting on changes
   useEffect(() => {
@@ -179,7 +203,7 @@ export const SwapCard: React.FC = () => {
       await connection.confirmTransaction(txid, "confirmed");
 
       // Save trade
-      const outputDecimals = resolveDecimals(outputMint);
+      const outputDecimals = resolveDecimalsSync(outputMint);
       const outputAmount = parseFloat(quote.outAmount) / Math.pow(10, outputDecimals);
 
       await saveTrade({
@@ -240,7 +264,7 @@ export const SwapCard: React.FC = () => {
 
   const priceImpact = quote ? calculatePriceImpact(quote.priceImpactPct) : null;
 
-  const outputDecimals = resolveDecimals(outputMint);
+  const outputDecimals = resolveDecimalsSync(outputMint);
   const estimatedOut = quote ? parseFloat(quote.outAmount) / Math.pow(10, outputDecimals) : 0;
 
   const showHighSlippageWarning = slippage > 2.0;
