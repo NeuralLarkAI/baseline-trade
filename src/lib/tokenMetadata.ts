@@ -58,7 +58,7 @@ export function cacheMetadata(metadata: TokenMetadata): void {
   saveCacheToStorage();
 }
 
-// Fetch token metadata from Jupiter Token API
+// Fetch token metadata via our edge function proxy (avoids CORS issues)
 export async function fetchTokenMetadata(mint: string): Promise<TokenMetadata | null> {
   // Check cache first
   const cached = getCachedMetadata(mint);
@@ -67,14 +67,29 @@ export async function fetchTokenMetadata(mint: string): Promise<TokenMetadata | 
   }
 
   try {
-    // Jupiter's strict token list API
-    const response = await fetch(`https://tokens.jup.ag/token/${mint}`);
+    // Use our edge function to proxy the request (bypasses CORS)
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/token-metadata?mint=${mint}`,
+      {
+        headers: {
+          'apikey': supabaseKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
     
     if (response.ok) {
       const data = await response.json();
       
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
       const metadata: TokenMetadata = {
-        mint: data.address || mint,
+        mint: data.mint || mint,
         symbol: data.symbol || mint.slice(0, 4).toUpperCase(),
         name: data.name || 'Unknown Token',
         decimals: data.decimals ?? 9,
@@ -83,26 +98,6 @@ export async function fetchTokenMetadata(mint: string): Promise<TokenMetadata | 
       
       cacheMetadata(metadata);
       return metadata;
-    }
-    
-    // Fallback: Try the all tokens endpoint with search
-    const allTokensResponse = await fetch(`https://tokens.jup.ag/tokens?tags=verified&search=${mint}`);
-    if (allTokensResponse.ok) {
-      const tokens = await allTokensResponse.json();
-      const token = tokens.find((t: any) => t.address === mint);
-      
-      if (token) {
-        const metadata: TokenMetadata = {
-          mint: token.address,
-          symbol: token.symbol,
-          name: token.name,
-          decimals: token.decimals ?? 9,
-          logoURI: token.logoURI || undefined,
-        };
-        
-        cacheMetadata(metadata);
-        return metadata;
-      }
     }
     
     // Return minimal metadata for unknown tokens
