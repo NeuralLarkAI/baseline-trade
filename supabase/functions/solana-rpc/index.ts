@@ -5,14 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Free public RPC endpoints that allow CORS
-const MAINNET_RPCS = [
+// Fallback public RPC endpoints
+const MAINNET_FALLBACKS = [
   'https://api.mainnet-beta.solana.com',
-  'https://solana-mainnet.g.alchemy.com/v2/demo',
   'https://rpc.ankr.com/solana',
 ];
 
-const DEVNET_RPCS = [
+const DEVNET_FALLBACKS = [
   'https://api.devnet.solana.com',
 ];
 
@@ -24,7 +23,16 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const isMainnet = url.searchParams.get('network') !== 'devnet';
-    const rpcs = isMainnet ? MAINNET_RPCS : DEVNET_RPCS;
+    
+    // Use Helius RPC as primary for mainnet
+    const heliusRpc = Deno.env.get('HELIUS_RPC_URL');
+    
+    // Build RPC list: Helius first (if available and mainnet), then fallbacks
+    const rpcs: string[] = [];
+    if (isMainnet && heliusRpc) {
+      rpcs.push(heliusRpc);
+    }
+    rpcs.push(...(isMainnet ? MAINNET_FALLBACKS : DEVNET_FALLBACKS));
 
     const body = await req.json();
     console.log('RPC request:', body.method, isMainnet ? 'mainnet' : 'devnet');
@@ -33,7 +41,9 @@ serve(async (req) => {
     let lastError: Error | null = null;
     for (const rpc of rpcs) {
       try {
-        console.log('Trying RPC:', rpc);
+        const rpcName = rpc.includes('helius') ? 'Helius' : rpc;
+        console.log('Trying RPC:', rpcName);
+        
         const response = await fetch(rpc, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -42,15 +52,15 @@ serve(async (req) => {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('RPC success from:', rpc);
+          console.log('RPC success from:', rpcName);
           return new Response(JSON.stringify(data), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
         
         const errorText = await response.text();
-        console.log('RPC failed:', rpc, response.status, errorText);
-        lastError = new Error(`${rpc}: ${response.status}`);
+        console.log('RPC failed:', rpcName, response.status, errorText);
+        lastError = new Error(`${rpcName}: ${response.status}`);
       } catch (e) {
         console.log('RPC error:', rpc, e);
         lastError = e as Error;
